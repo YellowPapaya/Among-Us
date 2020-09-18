@@ -15,7 +15,7 @@ class Game:
 
 
 class AmongUs(commands.Cog):
-    alive_id = 
+    alive_id = # Fill this stuff out yourself if you want to use this thing
     dead_id = 
     guild_id = 
 
