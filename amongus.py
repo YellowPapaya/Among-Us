@@ -1,5 +1,8 @@
+"""For playing Among Us"""
+
 import discord
 from discord.ext import commands
+
 
 class Game:
     def __init__(self, host, name):
@@ -110,13 +113,16 @@ class AmongUs(commands.Cog):
             for user in self.current_game.players:
                 if user.id == ctx.author.id:
                     author = user
+                    break
+            else:
+                await ctx.send("you are not in the game")
+                return
 
             await author.remove_roles(guild.get_role(AmongUs.alive_id))
             self.current_game.alive.remove(author)
 
             await author.add_roles(guild.get_role(AmongUs.dead_id))
             self.current_game.dead.append(author)
-
 
     @commands.guild_only()
     @commands.command()
@@ -220,8 +226,6 @@ class AmongUs(commands.Cog):
         else:
             await ctx.send(self.current_game.name)
 
-
-
     @commands.command()
     async def roles(self, ctx):
         """
@@ -229,9 +233,9 @@ class AmongUs(commands.Cog):
         """
         print(ctx.guild.roles)
 
+
 bot = commands.Bot(command_prefix='.')
 bot.add_cog(AmongUs(bot))
-
 
 
 with open("token.txt") as token_file:
