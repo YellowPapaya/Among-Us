@@ -35,16 +35,15 @@ class AmongUs(commands.Cog):
         """
         if self.current_game:
             await ctx.send("A game is already in progress")
-            return
 
-        if not name:
+        elif not name:
             await ctx.send("Game code must be provided")
-            return
 
-        game_name = '_'.join(name)
-        self.current_game = Game(ctx.author, game_name)
+        else:
+            game_name = '_'.join(name)
+            self.current_game = Game(ctx.author, game_name)
 
-        await ctx.send(f"Created new game: {game_name}\nType \".join\" to join.")
+            await ctx.send(f"Created new game: {game_name}\nType \".join\" to join.")
 
     @commands.guild_only()
     @commands.command()
@@ -54,18 +53,16 @@ class AmongUs(commands.Cog):
         """
         if not self.current_game:
             await ctx.send("No game active. You can start a game with \".create game_name\"")
-            return
 
-        if ctx.author in self.current_game.players:
+        elif ctx.author in self.current_game.players:
             await ctx.send("You are already in this game")
-            return
 
-        if self.current_game.active:
+        elif self.current_game.active:
             await ctx.send("This game is already in progress!")
-            return
 
-        self.current_game.add(ctx.author)
-        await ctx.send(f"You have joined game {self.current_game.name}")
+        else:
+            self.current_game.add(ctx.author)
+            await ctx.send(f"You have joined game {self.current_game.name}")
 
     @commands.guild_only()
     @commands.command()
@@ -75,11 +72,9 @@ class AmongUs(commands.Cog):
         """
         if not self.current_game:
             await ctx.send("No game active. You can start a game with \".create game_name\"")
-            return
 
-        if ctx.author != self.current_game.host:
+        elif ctx.author != self.current_game.host:
             await ctx.send("You are not the host")
-            return
 
         else:
             self.current_game.active = True
@@ -131,15 +126,12 @@ class AmongUs(commands.Cog):
         """
         if not self.current_game:
             await ctx.send("No game active. You can start a game with \".create game_name\"")
-            return
 
-        if ctx.author not in self.current_game.players:
+        elif ctx.author not in self.current_game.players:
             await ctx.send("You are not in this game")
-            return
 
         elif ctx.author == self.current_game.host:
             await ctx.send("The host can't leave the game")
-            return
 
         else:
             if self.current_game.active:
