@@ -15,9 +15,9 @@ class Game:
 
 
 class AmongUs(commands.Cog):
-    alive_id = # Fill this stuff out yourself if you want to use this thing
-    dead_id = 
-    guild_id = 
+    alive_id = 756213706379100310
+    dead_id = 756213764877058241
+    guild_id = 756213043771342928
 
     def __init__(self, bot):
         self.bot = bot
@@ -38,7 +38,7 @@ class AmongUs(commands.Cog):
             return
 
         if not name:
-            await ctx.send("Game name must be provided")
+            await ctx.send("Game code must be provided")
             return
 
         game_name = '_'.join(name)
@@ -142,7 +142,7 @@ class AmongUs(commands.Cog):
             return
 
         else:
-            if current_game.active:
+            if self.current_game.active:
                 if ctx.author in self.current_game.alive:
                     self.current_game.alive.remove(ctx.author)
                     await ctx.author.remove_roles(ctx.guild.get_role(AmongUs.alive_id))
@@ -161,11 +161,9 @@ class AmongUs(commands.Cog):
         """
         if not self.current_game:
             await ctx.send("No game active. You can start a game with \".create game_name\"")
-            return
 
         elif ctx.author != self.current_game.host:
             await ctx.send("Only the host can end the game")
-            return
 
         else:
             for user in self.current_game.players:
@@ -174,6 +172,63 @@ class AmongUs(commands.Cog):
 
             self.current_game = None
             await ctx.send("Game has been ended")
+
+    @commands.guild_only()
+    @commands.command()
+    async def round(self, ctx):
+        """
+        Moves the game onto the next round if sender is host
+        """
+        if not self.current_game:
+            await ctx.send("No game active. You can start a game with \".create game_name\"")
+
+        elif ctx.author != self.current_game.host:
+            await ctx.send("Only the host can start a new round")
+
+        elif not self.current_game.active:
+            await ctx.send("This command can only be used when the game is in progress")
+
+        else:
+            self.current_game.active = False
+            for user in self.current_game.players:
+                await user.remove_roles(ctx.guild.get_role(AmongUs.alive_id))
+                await user.remove_roles(ctx.guild.get_role(AmongUs.dead_id))
+
+            self.current_game.dead = []
+            self.current_game.alive = []
+
+    @commands.command()
+    async def game(self, ctx):
+        """
+        Lists details about the current game
+        """
+        if not self.current_game:
+            await ctx.send("No game active. You can start a game with \".create GAME_CODE\"")
+
+        else:
+            info = f"**Game Code:** {self.current_game.name}\n**Host:** {self.current_game.host.name}\n**Players:**\n"
+            for player in self.current_game.players:
+                info += player.name + '\n'
+
+            if self.current_game.active:
+                info += "Currently active"
+            else:
+                info += "Currently inactive"
+
+            await ctx.send(info)
+
+    @commands.command()
+    async def code(self, ctx):
+        """
+        Provides only the game code
+        """
+        if not self.current_game:
+            await ctx.send("No game active. You can start a game with \".create GAME_CODE\"")
+
+        else:
+            await ctx.send(self.current_game.name)
+
+
 
     @commands.command()
     async def roles(self, ctx):
