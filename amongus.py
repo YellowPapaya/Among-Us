@@ -1,13 +1,15 @@
 """For playing Among Us"""
 
+import textwrap
+
 import discord
 from discord.ext import commands
 
 
 class Game:
-    def __init__(self, host, name):
+    def __init__(self, host, code):
         self.host = host
-        self.name = name
+        self.code = code
         self.players = [host]
         self.alive = []
         self.dead = []
@@ -15,6 +17,28 @@ class Game:
 
     def add(self, player):
         self.players.append(player)
+
+    def reset(self):
+        self.alive = []
+        self.dead = []
+        self.active = False
+
+
+def game_exists():
+    async def predicate(ctx):
+        if ctx.cog.current_game is None:
+            await ctx.send("No game active. You can start a game with \".create game_code\"")
+            return False
+        return True
+    return commands.check(predicate)
+
+def player_in_game():
+    async def predicate(ctx):
+        if ctx.author not in ctx.cog.current_game.players:
+            await ctx.send("You are not in the game")
+            return False
+        return True
+    return commands.check(predicate)
 
 
 class AmongUs(commands.Cog):
@@ -26,38 +50,42 @@ class AmongUs(commands.Cog):
         self.bot = bot
         self.current_game = None
 
+    async def cog_command_error(self, ctx, error):
+        # so it stops printing massive stack traces
+        if isinstance(error, discord.ext.commands.CheckFailure):
+            print("check failed")
+        else:
+            raise error
+
     @commands.Cog.listener()
     async def on_ready(self):
         print("Connected!")
 
     @commands.guild_only()
     @commands.command()
-    async def create(self, ctx, *name):
+    async def create(self, ctx, code):
         """
         Creates a game
         """
         if self.current_game:
             await ctx.send("A game is already in progress")
 
-        elif not name:
+        elif not code:
             await ctx.send("Game code must be provided")
 
         else:
-            game_name = '_'.join(name)
-            self.current_game = Game(ctx.author, game_name)
+            self.current_game = Game(ctx.author, code)
 
-            await ctx.send(f"Created new game: {game_name}\nType \".join\" to join.")
+            await ctx.send(f"Created new game: {code}\nType \".join\" to join.")
 
     @commands.guild_only()
+    @game_exists()
     @commands.command()
     async def join(self, ctx):
         """
         Joins the current game
         """
-        if not self.current_game:
-            await ctx.send("No game active. You can start a game with \".create game_name\"")
-
-        elif ctx.author in self.current_game.players:
+        if ctx.author in self.current_game.players:
             await ctx.send("You are already in this game")
 
         elif self.current_game.active:
@@ -68,15 +96,13 @@ class AmongUs(commands.Cog):
             await ctx.send(f"You have joined game {self.current_game.name}")
 
     @commands.guild_only()
+    @game_exists()
     @commands.command()
     async def start(self, ctx):
         """
         Starts the current game if sender is host
         """
-        if not self.current_game:
-            await ctx.send("No game active. You can start a game with \".create game_name\"")
-
-        elif ctx.author != self.current_game.host:
+        if ctx.author != self.current_game.host:
             await ctx.send("You are not the host")
 
         else:
@@ -86,20 +112,15 @@ class AmongUs(commands.Cog):
             for user in self.current_game.players:
                 self.current_game.alive = self.current_game.players.copy()
                 await user.add_roles(ctx.guild.get_role(AmongUs.alive_id))
-            return
 
+    @game_exists()
+    @player_in_game()
     @commands.command()
     async def dead(self, ctx):
         """
         DM me this when you die
         """
-        if not self.current_game:
-            await ctx.send("No game active. You can start a game with \".create game_name\"")
-
-        elif ctx.author not in self.current_game.players:
-            await ctx.send("You are not in this game")
-
-        elif ctx.author in self.current_game.dead:
+        if ctx.author in self.current_game.dead:
             await ctx.send("You are already dead")
 
         elif not self.current_game.active:
@@ -125,18 +146,14 @@ class AmongUs(commands.Cog):
             self.current_game.dead.append(author)
 
     @commands.guild_only()
+    @game_exists()
+    @player_in_game()
     @commands.command()
     async def leave(self, ctx):
         """
         Sender leaves the game
         """
-        if not self.current_game:
-            await ctx.send("No game active. You can start a game with \".create game_name\"")
-
-        elif ctx.author not in self.current_game.players:
-            await ctx.send("You are not in this game")
-
-        elif ctx.author == self.current_game.host:
+        if ctx.author == self.current_game.host:
             await ctx.send("The host can't leave the game")
 
         else:
@@ -152,15 +169,13 @@ class AmongUs(commands.Cog):
             self.current_game.players.remove(ctx.author)
 
     @commands.guild_only()
+    @game_exists()
     @commands.command()
     async def end(self, ctx):
         """
-        Ends the current game if sender is host
+        Ends the current game (host only)
         """
-        if not self.current_game:
-            await ctx.send("No game active. You can start a game with \".create game_name\"")
-
-        elif ctx.author != self.current_game.host:
+        if ctx.author != self.current_game.host:
             await ctx.send("Only the host can end the game")
 
         else:
@@ -172,64 +187,55 @@ class AmongUs(commands.Cog):
             await ctx.send("Game has been ended")
 
     @commands.guild_only()
+    @game_exists()
     @commands.command()
     async def round(self, ctx):
         """
-        Moves the game onto the next round if sender is host
+        Moves the game onto the next round (host only)
         """
-        if not self.current_game:
-            await ctx.send("No game active. You can start a game with \".create game_name\"")
-
-        elif ctx.author != self.current_game.host:
+        if ctx.author != self.current_game.host:
             await ctx.send("Only the host can start a new round")
 
         elif not self.current_game.active:
             await ctx.send("This command can only be used when the game is in progress")
 
         else:
-            self.current_game.active = False
+            self.current_game.reset()
             for user in self.current_game.players:
                 await user.remove_roles(ctx.guild.get_role(AmongUs.alive_id))
                 await user.remove_roles(ctx.guild.get_role(AmongUs.dead_id))
 
-            self.current_game.dead = []
-            self.current_game.alive = []
-
+    @game_exists()
     @commands.command()
-    async def game(self, ctx):
+    async def info(self, ctx):
         """
-        Lists details about the current game
+        Lists information about the current game
         """
-        if not self.current_game:
-            await ctx.send("No game active. You can start a game with \".create GAME_CODE\"")
+        # cannot include \ in fstring {}
+        players_str = '\n\t'.join(
+            player.name for player in self.current_game.players)
+        info = textwrap.dedent(f"""\
+            **Game Code:** {self.current_game.name}
+            **Host:** {self.current_game.host.name}
+            **Players:**
+                {players_str}
+            Currently {'active' if self.current_game.active else 'inactive'}
+        """)
 
-        else:
-            info = f"**Game Code:** {self.current_game.name}\n**Host:** {self.current_game.host.name}\n**Players:**\n"
-            for player in self.current_game.players:
-                info += player.name + '\n'
+        await ctx.send(info)
 
-            if self.current_game.active:
-                info += "Currently active"
-            else:
-                info += "Currently inactive"
-
-            await ctx.send(info)
-
+    @game_exists()
     @commands.command()
     async def code(self, ctx):
         """
         Provides only the game code
         """
-        if not self.current_game:
-            await ctx.send("No game active. You can start a game with \".create GAME_CODE\"")
+        await ctx.send(self.current_game.code)
 
-        else:
-            await ctx.send(self.current_game.name)
-
-    @commands.command()
+    @commands.command(hidden=True)
     async def roles(self, ctx):
         """
-        Utility command only for me
+        Dev command
         """
         print(ctx.guild.roles)
 
