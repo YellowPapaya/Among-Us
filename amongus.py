@@ -93,7 +93,7 @@ class AmongUs(commands.Cog):
 
         else:
             self.current_game.add(ctx.author)
-            await ctx.send(f"You have joined game {self.current_game.name}")
+            await ctx.send(f"You have joined game {self.current_game.code}")
 
     @commands.guild_only()
     @game_exists()
@@ -215,7 +215,7 @@ class AmongUs(commands.Cog):
         players_str = '\n\t'.join(
             player.name for player in self.current_game.players)
         info = textwrap.dedent(f"""\
-            **Game Code:** {self.current_game.name}
+            **Game Code:** {self.current_game.code}
             **Host:** {self.current_game.host.name}
             **Players:**
                 {players_str}
